@@ -7,6 +7,7 @@ import javax.swing.JOptionPane;
 
 public class Client {
 	private static final int MAX_PACKET_SIZE = 1024;
+	private static final String ECHO_ACK_PREFIX = "[ACK]";
 
 	public static void main(String[] args) {
 		DatagramSocket socket = null;
@@ -123,8 +124,13 @@ public class Client {
 
 				System.out.println(header + " -> " + body);
 
-				if (payload.getType() == Payload.TYPE_ECHO) {
-					Payload echoReply = new Payload(Payload.TYPE_ECHO, myNickname, payload.getMessage());
+				if (payload.getType() == Payload.TYPE_ECHO
+						&& !payload.getMessage().startsWith(ECHO_ACK_PREFIX)) {
+					Payload echoReply = new Payload(
+							Payload.TYPE_ECHO,
+							myNickname,
+							ECHO_ACK_PREFIX + payload.getMessage()
+					);
 					byte[] replyBytes = echoReply.toBytes();
 					DatagramPacket reply = new DatagramPacket(
 							replyBytes,
