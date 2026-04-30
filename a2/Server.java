@@ -1,3 +1,11 @@
+/*
+ * Descricao: recebe uploads UDP, valida sequencia e checksum, e grava o arquivo em disco.
+ * Autores:
+	- Mateus Santos Fernandes
+	- Matheus Floriano Saito da Silva
+ * Data de criacao: 27/04/2026
+ * Data de atualizacao: 30/04/2026
+ */
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -9,6 +17,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import javax.swing.JOptionPane;
 
+/**
+ * Servidor UDP que processa um upload ativo por vez e salva o arquivo recebido.
+ */
 public class Server {
 	private static final int MAX_PACKET_SIZE = 1400;
 	private static final String UPLOAD_DIR = "uploads";
@@ -20,6 +31,11 @@ public class Server {
 	private static int expectedSequence;
 	private static ByteArrayOutputStream activeContent;
 
+	/**
+	 * Ponto de entrada do servidor.
+	 *
+	 * @param args argumentos de linha de comando, nao utilizados.
+	 */
 	public static void main(String[] args) {
 		DatagramSocket socket = null;
 		try {
@@ -60,6 +76,13 @@ public class Server {
 		}
 	}
 
+	/**
+	 * Processa um pacote recebido segundo o estado atual do upload.
+	 *
+	 * @param payload pacote desserializado.
+	 * @param fromAddress endereco de origem.
+	 * @param fromPort porta de origem.
+	 */
 	private static void handlePacket(Payload payload, InetAddress fromAddress, int fromPort) {
 		if (payload.getType() == Payload.TYPE_START) {
 			activeClientAddress = fromAddress;
@@ -98,6 +121,13 @@ public class Server {
 		}
 	}
 
+	/**
+	 * Verifica se o remetente pertence ao upload ativo.
+	 *
+	 * @param fromAddress endereco de origem.
+	 * @param fromPort porta de origem.
+	 * @return true quando o remetente corresponde ao upload ativo.
+	 */
 	private static boolean isActiveUploadFromSender(InetAddress fromAddress, int fromPort) {
 		return activeClientAddress != null
 				&& activeContent != null
@@ -105,6 +135,11 @@ public class Server {
 				&& activeClientAddress.equals(fromAddress);
 	}
 
+	/**
+	 * Finaliza o upload comparando tamanho e checksum antes de salvar o arquivo.
+	 *
+	 * @param receivedChecksum checksum informado pelo cliente.
+	 */
 	private static void finalizeUpload(String receivedChecksum) {
 		try {
 			byte[] bytes = activeContent.toByteArray();
@@ -138,20 +173,36 @@ public class Server {
 		}
 	}
 
+	/**
+	 * Remove qualquer caminho do nome do arquivo recebido.
+	 *
+	 * @param fileName nome bruto recebido no START.
+	 * @return apenas o nome base do arquivo.
+	 */
 	private static String sanitizeFileName(String fileName) {
 		return Path.of(fileName).getFileName().toString();
 	}
 
+	/**
+	 * Calcula o SHA-1 hexadecimal de um vetor de bytes.
+	 *
+	 * @param bytes dados para calcular o checksum.
+	 * @return checksum em hexadecimal minusculo.
+	 * @throws NoSuchAlgorithmException quando SHA-1 nao estiver disponivel.
+	 */
 	private static String sha1Hex(byte[] bytes) throws NoSuchAlgorithmException {
-		MessageDigest md = MessageDigest.getInstance("SHA-1");
-		byte[] digest = md.digest(bytes);
-		StringBuilder sb = new StringBuilder();
-		for (byte b : digest) {
-			sb.append(String.format("%02x", b));
+		MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
+		byte[] digest = messageDigest.digest(bytes);
+		StringBuilder hexBuilder = new StringBuilder();
+		for (byte currentByte : digest) {
+			hexBuilder.append(String.format("%02x", currentByte));
 		}
-		return sb.toString();
+		return hexBuilder.toString();
 	}
 
+	/**
+	 * Limpa o estado do upload ativo.
+	 */
 	private static void resetState() {
 		activeClientAddress = null;
 		activeClientPort = 0;

@@ -1,7 +1,18 @@
+/*
+ * Descricao: representa e serializa os pacotes do protocolo de upload UDP da atividade 2.
+ * Autores:
+	- Mateus Santos Fernandes
+	- Matheus Floriano Saito da Silva
+ * Data de criacao: 27/04/2026
+ * Data de atualizacao: 30/04/2026
+ */
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+/**
+ * Modelo de payload usado pelo cliente e pelo servidor.
+ */
 public class Payload {
 	public static final byte TYPE_START = 1;
 	public static final byte TYPE_DATA = 2;
@@ -23,12 +34,20 @@ public class Payload {
 		this.checksum = checksum;
 	}
 
+	/**
+	 * Cria um payload START com nome e tamanho do arquivo.
+	 *
+	 * @param fileName nome do arquivo a ser enviado.
+	 * @param fileSize tamanho total do arquivo em bytes.
+	 * @return payload configurado como START.
+	 * @throws IllegalArgumentException quando os parametros sao invalidos.
+	 */
 	public static Payload start(String fileName, long fileSize) {
 		if (fileName == null || fileName.isBlank()) {
 			throw new IllegalArgumentException("Nome do arquivo invalido.");
 		}
-		byte[] nameBytes = fileName.getBytes(StandardCharsets.UTF_8);
-		if (nameBytes.length > 255) {
+		byte[] fileNameBytes = fileName.getBytes(StandardCharsets.UTF_8);
+		if (fileNameBytes.length > 255) {
 			throw new IllegalArgumentException("Nome do arquivo muito grande.");
 		}
 		if (fileSize < 0) {
@@ -37,6 +56,15 @@ public class Payload {
 		return new Payload(TYPE_START, fileName, fileSize, 0, null, null);
 	}
 
+	/**
+	 * Cria um payload DATA com numero de sequencia e bloco de dados.
+	 *
+	 * @param sequenceNumber numero sequencial do bloco.
+	 * @param data bytes do bloco de dados.
+	 * @param length quantidade de bytes validos no bloco.
+	 * @return payload configurado como DATA.
+	 * @throws IllegalArgumentException quando os parametros sao invalidos.
+	 */
 	public static Payload data(int sequenceNumber, byte[] data, int length) {
 		if (sequenceNumber < 0) {
 			throw new IllegalArgumentException("Sequencia invalida.");
@@ -50,6 +78,13 @@ public class Payload {
 		return new Payload(TYPE_DATA, null, 0, sequenceNumber, Arrays.copyOf(data, length), null);
 	}
 
+	/**
+	 * Cria um payload END com o checksum SHA-1 do arquivo.
+	 *
+	 * @param checksum checksum SHA-1 em hexadecimal.
+	 * @return payload configurado como END.
+	 * @throws IllegalArgumentException quando o checksum for invalido.
+	 */
 	public static Payload end(String checksum) {
 		if (checksum == null || checksum.isBlank()) {
 			throw new IllegalArgumentException("Checksum invalido.");
@@ -60,38 +95,73 @@ public class Payload {
 		return new Payload(TYPE_END, null, 0, 0, null, checksum.toLowerCase());
 	}
 
+	/**
+	 * Retorna o tipo do payload.
+	 *
+	 * @return tipo do pacote.
+	 */
 	public byte getType() {
 		return type;
 	}
 
+	/**
+	 * Retorna o nome do arquivo, quando aplicavel.
+	 *
+	 * @return nome do arquivo ou null.
+	 */
 	public String getFileName() {
 		return fileName;
 	}
 
+	/**
+	 * Retorna o tamanho do arquivo, quando aplicavel.
+	 *
+	 * @return tamanho do arquivo em bytes.
+	 */
 	public long getFileSize() {
 		return fileSize;
 	}
 
+	/**
+	 * Retorna o numero de sequencia do bloco, quando aplicavel.
+	 *
+	 * @return numero de sequencia.
+	 */
 	public int getSequenceNumber() {
 		return sequenceNumber;
 	}
 
+	/**
+	 * Retorna uma copia dos dados do bloco.
+	 *
+	 * @return bytes do bloco ou null.
+	 */
 	public byte[] getData() {
 		return data == null ? null : Arrays.copyOf(data, data.length);
 	}
 
+	/**
+	 * Retorna o checksum, quando aplicavel.
+	 *
+	 * @return checksum em hexadecimal ou null.
+	 */
 	public String getChecksum() {
 		return checksum;
 	}
 
+	/**
+	 * Serializa o payload para o formato binario do protocolo.
+	 *
+	 * @return vetor de bytes pronto para envio.
+	 */
 	public byte[] toBytes() {
 		switch (type) {
 			case TYPE_START:
-				byte[] nameBytes = fileName.getBytes(StandardCharsets.UTF_8);
-				ByteBuffer startBuffer = ByteBuffer.allocate(1 + 1 + nameBytes.length + 8);
+				byte[] fileNameBytes = fileName.getBytes(StandardCharsets.UTF_8);
+				ByteBuffer startBuffer = ByteBuffer.allocate(1 + 1 + fileNameBytes.length + 8);
 				startBuffer.put(type);
-				startBuffer.put((byte) nameBytes.length);
-				startBuffer.put(nameBytes);
+				startBuffer.put((byte) fileNameBytes.length);
+				startBuffer.put(fileNameBytes);
 				startBuffer.putLong(fileSize);
 				return startBuffer.array();
 			case TYPE_DATA:
@@ -113,6 +183,14 @@ public class Payload {
 		}
 	}
 
+	/**
+	 * Desserializa um payload a partir de um pacote recebido.
+	 *
+	 * @param bytes buffer bruto recebido da rede.
+	 * @param length quantidade de bytes validos no buffer.
+	 * @return payload reconstruido.
+	 * @throws IllegalArgumentException quando o pacote for invalido.
+	 */
 	public static Payload fromBytes(byte[] bytes, int length) {
 		if (bytes == null || length < 1) {
 			throw new IllegalArgumentException("Pacote invalido.");
@@ -120,6 +198,7 @@ public class Payload {
 
 		ByteBuffer buffer = ByteBuffer.wrap(bytes, 0, length);
 		byte type = buffer.get();
+		validateType(type);
 
 		if (type == TYPE_START) {
 			if (buffer.remaining() < 1) {
@@ -167,5 +246,17 @@ public class Payload {
 		}
 
 		throw new IllegalArgumentException("Tipo de pacote invalido: " + type);
+	}
+
+	/**
+	 * Valida se o tipo pertence ao conjunto suportado pelo protocolo.
+	 *
+	 * @param type tipo do pacote.
+	 * @throws IllegalArgumentException quando o tipo nao existir.
+	 */
+	private static void validateType(byte type) {
+		if (type != TYPE_START && type != TYPE_DATA && type != TYPE_END) {
+			throw new IllegalArgumentException("Tipo de pacote invalido: " + type);
+		}
 	}
 }

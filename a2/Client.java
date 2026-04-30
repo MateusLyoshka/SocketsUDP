@@ -1,3 +1,11 @@
+/*
+ * Descricao: envia um arquivo via UDP usando o protocolo de upload da atividade 2.
+ * Autores:
+	- Mateus Santos Fernandes
+	- Matheus Floriano Saito da Silva
+ * Data de criacao: 27/04/2026
+ * Data de atualizacao: 30/04/2026
+ */
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -8,9 +16,17 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import javax.swing.JOptionPane;
 
+/**
+ * Cliente interativo para selecionar um arquivo e envia-lo ao servidor UDP.
+ */
 public class Client {
 	private static final int CHUNK_SIZE = 1024;
 
+	/**
+	 * Ponto de entrada do cliente.
+	 *
+	 * @param args argumentos de linha de comando, nao utilizados.
+	 */
 	public static void main(String[] args) {
 		DatagramSocket socket = null;
 		try {
@@ -25,8 +41,8 @@ public class Client {
 				return;
 			}
 
-			String dstIP = JOptionPane.showInputDialog("IP Destino?");
-			if (dstIP == null || dstIP.trim().isEmpty()) {
+			String destinationIpInput = JOptionPane.showInputDialog("IP Destino?");
+			if (destinationIpInput == null || destinationIpInput.trim().isEmpty()) {
 				return;
 			}
 
@@ -36,7 +52,7 @@ public class Client {
 			}
 			int dstPort = Integer.parseInt(dstPortInput.trim());
 
-			InetAddress destinationAddress = InetAddress.getByName(dstIP.trim());
+			InetAddress destinationAddress = InetAddress.getByName(destinationIpInput.trim());
 			socket = new DatagramSocket();
 
 			String fileName = filePath.getFileName().toString();
@@ -76,6 +92,15 @@ public class Client {
 		}
 	}
 
+	/**
+	 * Envia um payload para o destino informado.
+	 *
+	 * @param socket socket UDP em uso.
+	 * @param address endereco IP de destino.
+	 * @param port porta de destino.
+	 * @param payload pacote a ser enviado.
+	 * @throws IOException quando o envio falhar.
+	 */
 	private static void sendPayload(DatagramSocket socket, InetAddress address, int port, Payload payload)
 			throws IOException {
 		byte[] bytes = payload.toBytes();
@@ -83,13 +108,20 @@ public class Client {
 		socket.send(packet);
 	}
 
+	/**
+	 * Calcula o SHA-1 hexadecimal de um vetor de bytes.
+	 *
+	 * @param bytes dados de entrada.
+	 * @return checksum em hexadecimal minusculo.
+	 * @throws NoSuchAlgorithmException quando SHA-1 nao estiver disponivel.
+	 */
 	private static String sha1Hex(byte[] bytes) throws NoSuchAlgorithmException {
-		MessageDigest md = MessageDigest.getInstance("SHA-1");
-		byte[] digest = md.digest(bytes);
-		StringBuilder sb = new StringBuilder();
-		for (byte b : digest) {
-			sb.append(String.format("%02x", b));
+		MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
+		byte[] digest = messageDigest.digest(bytes);
+		StringBuilder hexBuilder = new StringBuilder();
+		for (byte currentByte : digest) {
+			hexBuilder.append(String.format("%02x", currentByte));
 		}
-		return sb.toString();
+		return hexBuilder.toString();
 	}
 }

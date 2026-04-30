@@ -1,3 +1,11 @@
+/*
+ * Descricao: cliente UDP ponto a ponto da atividade 1, com envio e recepcao de mensagens.
+ * Autores:
+	- Mateus Santos Fernandes
+	- Matheus Floriano Saito da Silva
+ * Data de criacao: 26/04/2026
+ * Data de atualizacao: 30/04/2026
+ */
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -5,10 +13,18 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import javax.swing.JOptionPane;
 
+/**
+ * Cliente UDP para envio e recebimento de mensagens entre dois pares.
+ */
 public class Client {
 	private static final int MAX_PACKET_SIZE = 1024;
 	private static final String ECHO_ACK_PREFIX = "[ACK]";
 
+	/**
+	 * Ponto de entrada da aplicacao cliente.
+	 *
+	 * @param args argumentos de linha de comando, nao utilizados.
+	 */
 	public static void main(String[] args) {
 		DatagramSocket socket = null;
 		try {
@@ -24,18 +40,18 @@ public class Client {
 			}
 			int localPort = Integer.parseInt(localPortInput.trim());
 
-			String dstIP = JOptionPane.showInputDialog("IP Destino?");
-			if (dstIP == null || dstIP.trim().isEmpty()) {
+			String destinationIpInput = JOptionPane.showInputDialog("IP Destino?");
+			if (destinationIpInput == null || destinationIpInput.trim().isEmpty()) {
 				return;
 			}
 
-			String dstPortInput = JOptionPane.showInputDialog("Porta Destino?");
-			if (dstPortInput == null) {
+			String destinationPortInput = JOptionPane.showInputDialog("Porta Destino?");
+			if (destinationPortInput == null) {
 				return;
 			}
-			int dstPort = Integer.parseInt(dstPortInput.trim());
+			int destinationPort = Integer.parseInt(destinationPortInput.trim());
 
-			InetAddress destinationAddress = InetAddress.getByName(dstIP.trim());
+			InetAddress destinationAddress = InetAddress.getByName(destinationIpInput.trim());
 			socket = new DatagramSocket(localPort);
 
 			DatagramSocket finalSocket = socket;
@@ -43,7 +59,7 @@ public class Client {
 			receiver.setDaemon(true);
 			receiver.start();
 
-			    while (true) {
+			while (true) {
 				String typeInput = JOptionPane.showInputDialog(
 						"Tipo (1=normal, 2=emoji, 3=url, 4=echo):");
 				if (typeInput == null) {
@@ -52,47 +68,47 @@ public class Client {
 
 				byte type;
 				try {
-					int parsed = Integer.parseInt(typeInput.trim());
-					type = (byte) parsed;
+					int parsedType = Integer.parseInt(typeInput.trim());
+					type = (byte) parsedType;
 				} catch (NumberFormatException ex) {
 					JOptionPane.showMessageDialog(null, "Tipo invalido.");
 					continue;
 				}
 
-				String msg;
+				String message;
 				if (type == Payload.TYPE_ECHO) {
-					msg = "ECHO";
+					message = "ECHO";
 				} else {
-					msg = JOptionPane.showInputDialog("Mensagem?");
-					if (msg == null) {
+					message = JOptionPane.showInputDialog("Mensagem?");
+					if (message == null) {
 						break;
 					}
 				}
 
 				try {
-					Payload payload = new Payload(type, nickname, msg);
+					Payload payload = new Payload(type, nickname, message);
 					byte[] bytes = payload.toBytes();
 
 					DatagramPacket packet = new DatagramPacket(
 							bytes,
 							bytes.length,
 							destinationAddress,
-							dstPort
+							destinationPort
 					);
 					socket.send(packet);
 					System.out.println("Enviado [" + Payload.typeLabel(type) + "] para "
-							+ destinationAddress.getHostAddress() + ":" + dstPort);
+							+ destinationAddress.getHostAddress() + ":" + destinationPort);
 				} catch (IllegalArgumentException ex) {
 					JOptionPane.showMessageDialog(null, "Erro no payload: " + ex.getMessage());
 				}
 
-				int resp = JOptionPane.showConfirmDialog(
+				int response = JOptionPane.showConfirmDialog(
 						null,
 						"Nova mensagem?",
 						"Continuar",
 						JOptionPane.YES_NO_OPTION
 				);
-				if (resp == JOptionPane.NO_OPTION) {
+				if (response == JOptionPane.NO_OPTION) {
 					break;
 				}
 			}
@@ -109,6 +125,12 @@ public class Client {
 		}
 	}
 
+	/**
+	 * Mantem a recepcao de mensagens enquanto o socket permanecer aberto.
+	 *
+	 * @param socket socket UDP usado para recepcao.
+	 * @param myNickname apelido local usado nos retornos de echo.
+	 */
 	private static void receiveLoop(DatagramSocket socket, String myNickname) {
 		while (!socket.isClosed()) {
 			try {
@@ -118,8 +140,8 @@ public class Client {
 
 				Payload payload = Payload.fromBytes(packet.getData(), packet.getLength());
 
-				String from = packet.getAddress().getHostAddress() + ":" + packet.getPort();
-				String header = "Recebido de " + from + " [" + Payload.typeLabel(payload.getType()) + "]";
+				String senderAddress = packet.getAddress().getHostAddress() + ":" + packet.getPort();
+				String header = "Recebido de " + senderAddress + " [" + Payload.typeLabel(payload.getType()) + "]";
 				String body = payload.getNickname() + ": " + payload.getMessage();
 
 				System.out.println(header + " -> " + body);
